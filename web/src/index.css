@@ -1,0 +1,256 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', 'Segoe UI', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --color-bg: #0b1116;
+  --color-panel: #111a21;
+  --color-panel-2: #16212a;
+  --color-line: #22303b;
+  --color-line-2: #2d3e4b;
+  --color-ink: #e6edf2;
+  --color-ink-2: #a9b8c4;
+  --color-ink-3: #7c8d9b;
+  --color-ice: #6cd3ff;
+  --color-ice-dim: #1d4357;
+
+  --color-ok: #3ecf8e;
+  --color-ok-bg: #0f2a20;
+  --color-warn: #f0b429;
+  --color-warn-bg: #2d240c;
+  --color-crit: #ff5d5d;
+  --color-crit-bg: #3a1414;
+  --color-off: #94a3b3;
+  --color-off-bg: #1c252d;
+  --color-sim: #c4a7ff;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'tnum' 1, 'cv11' 1;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ice);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@layer components {
+.panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+}
+
+.label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-ink-3);
+  font-weight: 600;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 7px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--color-line-2);
+  background: var(--color-panel-2);
+  color: var(--color-ink);
+  transition: background 120ms, border-color 120ms;
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--color-ink-3);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: #1b6e93;
+  border-color: #2b8bb6;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #2180aa;
+}
+.btn-danger {
+  background: #5a1a1a;
+  border-color: #8c2c2c;
+}
+.btn-sm {
+  padding: 3px 9px;
+  font-size: 12px;
+}
+
+.input {
+  background: var(--color-bg);
+  border: 1px solid var(--color-line-2);
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--color-ink);
+}
+.input::placeholder {
+  color: var(--color-ink-3);
+}
+
+.sim-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--color-sim);
+  border: 1px solid #4b3a73;
+  border-radius: 4px;
+  padding: 0 4px;
+  line-height: 15px;
+}
+
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 93, 93, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 10px rgba(255, 93, 93, 0);
+  }
+}
+.pulse-crit {
+  animation: pulse-ring 1.6s ease-out infinite;
+}
+@keyframes flash-in {
+  from {
+    background: rgba(108, 211, 255, 0.12);
+  }
+  to {
+    background: transparent;
+  }
+}
+.flash {
+  animation: flash-in 900ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse-crit,
+  .flash {
+    animation: none;
+  }
+}
+
+/* uPlot base styles (adapted for the dark theme) */
+.uplot,
+.uplot *,
+.uplot *::before,
+.uplot *::after {
+  box-sizing: border-box;
+}
+.uplot {
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  width: min-content;
+}
+.u-wrap {
+  position: relative;
+  user-select: none;
+}
+.u-over,
+.u-under {
+  position: absolute;
+}
+.u-under {
+  overflow: hidden;
+}
+.uplot canvas {
+  display: block;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.u-axis {
+  position: absolute;
+}
+.u-legend {
+  display: none;
+}
+.u-select {
+  background: rgba(108, 211, 255, 0.12);
+  position: absolute;
+  pointer-events: none;
+}
+.u-cursor-x,
+.u-cursor-y {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+.u-hz .u-cursor-x,
+.u-vt .u-cursor-y {
+  height: 100%;
+  border-right: 1px dashed #4a5d6c;
+}
+.u-hz .u-cursor-y,
+.u-vt .u-cursor-x {
+  width: 100%;
+  border-bottom: 1px dashed #4a5d6c;
+}
+.u-cursor-pt {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 50%;
+  border: 0 solid;
+  pointer-events: none;
+  will-change: transform;
+  background-clip: padding-box !important;
+}
+.u-axis.u-off,
+.u-select.u-off,
+.u-cursor-x.u-off,
+.u-cursor-y.u-off,
+.u-cursor-pt.u-off {
+  display: none;
+}
+
+/* Printable evidence report */
+@media print {
+  header,
+  footer,
+  .print\:hidden {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+  .report .panel {
+    background: #fff !important;
+    border-color: #bbb !important;
+    break-inside: avoid;
+  }
+  .report * {
+    color: #111 !important;
+  }
+}

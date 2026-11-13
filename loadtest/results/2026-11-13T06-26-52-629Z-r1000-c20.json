@@ -1,0 +1,88 @@
+{
+  "label": "r1000-c20",
+  "at": "2026-11-13T06:26:52.620Z",
+  "environment": {
+    "node": "v22.22.1",
+    "platform": "Linux 7.0.0-42-generic x64",
+    "cpu": "12th Gen Intel(R) Core(TM) i5-12450H",
+    "cores": 12,
+    "memGb": 16,
+    "note": "Load generator, socket clients, server and MongoDB (Docker) on the same machine."
+  },
+  "config": {
+    "rate": 1000,
+    "devices": 1000,
+    "clients": 20,
+    "devicesPerClient": 5,
+    "warmupSec": 10,
+    "durationSec": 60,
+    "batch": 250,
+    "concurrency": 4,
+    "burstRate": 0,
+    "burstSec": 15
+  },
+  "steady": {
+    "seconds": 60,
+    "offered": 59700,
+    "persistedAcked": 59700,
+    "offeredPerSec": 995,
+    "persistedPerSec": 995,
+    "rejectedInvalid": 0,
+    "overload503": 0,
+    "rateLimited429": 0,
+    "retries": 0,
+    "ingestAckMs": {
+      "p50": 26,
+      "p95": 42.2,
+      "p99": 69.8,
+      "n": 597
+    },
+    "deliveryMs": {
+      "p50": 101,
+      "p95": 252,
+      "p99": 258,
+      "n": 6000
+    },
+    "server": {
+      "persistedPerSecAvg": 995.3,
+      "queueDepthMax": 100,
+      "dbBatchP95Avg": 6.6,
+      "dbBatchSizeAvg": 100,
+      "pipelineP95Avg": 219.8,
+      "cpuPctAvg": 9.2,
+      "cpuPctMax": 13.4,
+      "rssMbMax": 188,
+      "eventLoopP99MsMax": 15.7,
+      "socketEmitsPerSecAvg": 20031.7,
+      "laggingSocketsMax": 0
+    }
+  },
+  "burst": null,
+  "recovery": {
+    "seconds": 5,
+    "outboxDrainMs": 0,
+    "pendingAfterDrain": 0,
+    "queueDepthAtEnd": 0
+  },
+  "totals": {
+    "offered": 74600,
+    "sent": 74600,
+    "duplicates": 0,
+    "late": 0,
+    "rejected": 0,
+    "retries": 0,
+    "overload503": 0,
+    "rateLimited429": 0,
+    "networkErrors": 0,
+    "droppedLocal": 0
+  },
+  "delivery": {
+    "definition": "For every reading MongoDB stored for a subscribed device during the run, was it received by each subscribed client?",
+    "expected": 7500,
+    "delivered": 7500,
+    "missing": 0,
+    "ratio": 100,
+    "fleetDeltaMsgsPerClient": 76,
+    "fleetStatesPerClient": 74500
+  }
+}

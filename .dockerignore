@@ -1,0 +1,8 @@
+node_modules
+**/node_modules
+web/dist
+.env
+loadtest/results
+test-results
+.git
+*.log

@@ -1,0 +1,17 @@
+import { chromium } from '@playwright/test';
+const [,, url, out, w = '1440', h = '900', user = 'operator', wait = '4000'] = process.argv;
+const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', headless: true });
+const p = await b.newPage({ viewport: { width: +w, height: +h } });
+const errs = [];
+p.on('console', (m) => m.type() === 'error' && errs.push(m.text()));
+p.on('pageerror', (e) => errs.push('PAGEERROR ' + e.message));
+await p.goto('http://localhost:5173/');
+await p.getByLabel('Username').fill(user);
+await p.getByLabel('Password').fill('coldguard-demo');
+await p.getByRole('button', { name: 'Sign in' }).click();
+await p.waitForTimeout(1500);
+if (url !== '/') await p.goto('http://localhost:5173' + url);
+await p.waitForTimeout(+wait);
+await p.screenshot({ path: out, fullPage: true });
+console.log('errors:', JSON.stringify(errs));
+await b.close();

@@ -1,0 +1,24 @@
+# Render blueprint: a persistent web service (long-lived Socket.IO connections are
+# supported; serverless functions are NOT suitable for this backend).
+# MongoDB: use MongoDB Atlas and set MONGO_URL as a secret in the dashboard.
+services:
+  - type: web
+    name: coldguard
+    runtime: docker
+    plan: starter
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: MONGO_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: AGENT_KEY
+        sync: false # "<agentId>.<long random secret>"
+      - key: DEMO_PASSWORD
+        sync: false
+      - key: CORS_ORIGIN
+        value: https://coldguard.onrender.com
+      - key: SIM_AUTOSPAWN
+        value: "true"
+      - key: ALLOW_DEMO_RESET
+        value: "false"

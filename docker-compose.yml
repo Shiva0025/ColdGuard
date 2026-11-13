@@ -1,0 +1,34 @@
+services:
+  mongo:
+    image: mongo:8.0
+    container_name: coldguard-mongo
+    ports:
+      - "27027:27017"
+    volumes:
+      - coldguard-mongo:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  app:
+    profiles: ["app"]
+    build: .
+    environment:
+      # Local, single-machine demo only. For any shared deployment set real secrets and NODE_ENV=production.
+      NODE_ENV: development
+      CORS_ORIGIN: http://localhost:4000
+      MONGO_URL: mongodb://mongo:27017/coldguard
+      JWT_SECRET: ${JWT_SECRET:-local-compose-jwt-secret-not-for-production}
+      AGENT_KEY: ${AGENT_KEY:-sim-agent.local-compose-secret-key}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-coldguard-demo}
+      ALLOW_DEMO_RESET: "true"
+      SIM_AUTOSPAWN: "true"
+      PORT: "4000"
+    ports:
+      - "4000:4000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+volumes:
+  coldguard-mongo:
