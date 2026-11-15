@@ -14,9 +14,7 @@ You can watch a cold-chain incident develop live, send a rescue command and see 
 
 Cold-chain operators watch dozens of refrigerated loggers. When a compressor fails, the temperature starts *drifting* well before it breaches the safe band. By the time a simple threshold alarm fires, the stock may already be compromised. Meanwhile the data keeps streaming, and the operator has to investigate one shipment without losing sight of the rest.
 
-ColdGuard covers that workflow end to end:
-
-The demo story in [DEMO_SCRIPT.md](DEMO_SCRIPT.md): healthy trucks stream → the judges join from their phones → a door is left open and the compressor fails → an explained alert fires → the truck loses signal while it keeps buffering → the operator's rescue command waits for the signal → on reconnect the command is applied, the missing history is backfilled without duplicates, and the cooling recovery shows in the telemetry → the incident is replayed → the evidence is verified and tampering is caught.
+ColdGuard covers that workflow end to end: healthy trucks stream → the judges join from their phones → a door is left open and the compressor fails → an explained alert fires → the truck loses signal while it keeps buffering → the operator's rescue command waits for the signal → on reconnect the command is applied, the missing history is backfilled without duplicates, and the cooling recovery shows in the telemetry → the incident is replayed → the evidence is verified and tampering is caught.
 
 The underlying flow:
 
