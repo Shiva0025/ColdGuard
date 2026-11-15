@@ -173,9 +173,15 @@ e2e/        Playwright demo-flow test + screenshot helpers
 
 ## 10. Deployment
 
-The backend needs **one long-lived Node process** for Socket.IO. Serverless request handlers are not suitable. `Dockerfile` builds a single image that serves the API, Socket.IO and the built SPA. `render.yaml` describes a Render web service (Docker runtime, `/api/healthz` health check) backed by MongoDB Atlas, with `SIM_AUTOSPAWN=true` and `ALLOW_DEMO_RESET=false`.
+`Dockerfile` builds a single image that serves the API, Socket.IO and the built SPA. `render.yaml` describes a Render web service (Docker runtime, `/api/healthz` health check) backed by MongoDB Atlas, with `SIM_AUTOSPAWN=true` and `ALLOW_DEMO_RESET=false`. Render is the recommended host for the complete demo because it runs this backend as one persistent process.
 
-Not yet deployed. Remaining step: create an Atlas cluster, set `MONGO_URL`, `AGENT_KEY`, `DEMO_PASSWORD` and `CORS_ORIGIN` in the host dashboard, then deploy the blueprint.
+### Vercel Services (beta)
+
+The root `vercel.json` configures the `web` Vite frontend and `server` container as services in one Vercel project. The frontend is public on all non-API paths; the backend receives `/api/*` and `/socket.io/*`. Socket.IO is explicitly routed to the same backend service as the API. Browser requests use same-origin paths, so no service binding is needed; MongoDB is an external Atlas connection configured through `MONGO_URL`.
+
+In the Vercel project, configure `MONGO_URL`, `JWT_SECRET` (at least 24 characters), `AGENT_KEY` (`<agent-id>.<secret>` with a secret of at least 16 characters), and `DEMO_PASSWORD`. Set `SIM_AUTOSPAWN=true` only when running a single backend instance; set `ALLOW_DEMO_RESET=false` outside a disposable demo database. The backend adds Vercel's deployment and branch URLs to its CORS allowlist automatically. Add any custom domain to `CORS_ORIGIN` as a comma-separated origin if needed.
+
+Vercel WebSocket support is in beta and connections can close at the function's duration limit, so clients must reconnect. More importantly, ColdGuard's pipeline, alert engine, metrics and simulator are process-local. Multiple backend instances or instance restarts can split in-memory state or start duplicate simulators; this Vercel setup is for evaluation, not a verified horizontally scaled production deployment. Keep the backend to one instance if the Vercel plan/configuration allows it, or use the persistent Render deployment for the complete demo.
 
 ## 11. Attribution
 

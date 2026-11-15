@@ -78,7 +78,10 @@ export async function createColdGuard(cfg: Config, opts: { tunnel?: TunnelManage
       },
     }),
   );
-  const origins = cfg.CORS_ORIGIN.split(',').map((s) => s.trim()).filter(Boolean);
+  const vercelOrigins = [process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL]
+    .filter((host): host is string => Boolean(host))
+    .map((host) => new URL(`https://${host}`).origin);
+  const origins = [...new Set([...cfg.CORS_ORIGIN.split(',').map((s) => s.trim()).filter(Boolean), ...vercelOrigins])];
   app.use(cors({ origin: origins, credentials: false }));
 
   const httpServer = http.createServer(app);
