@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { ArrowLeft, Battery, Droplets, Fan, Flame, Play, Pause, RefreshCw, Thermometer, Clock, Database, ZoomIn } from 'lucide-react';
+import { ArrowLeft, Battery, Download, TrendingUp, Droplets, Fan, Flame, Play, Pause, RefreshCw, Thermometer, Clock, Database, ZoomIn } from 'lucide-react';
 import type { DeviceInfo, DeviceState, Rules } from '@coldguard/shared';
-import { api, type SessionUser } from '../lib/api';
+import { api, downloadFile, type SessionUser } from '../lib/api';
 import { DeviceStream, RANGES } from '../lib/deviceStream';
 import { fleet, incidents, useStore } from '../lib/stores';
 import { realtime } from '../lib/realtime';
-import { COOLING_LABEL, fmtAgo, fmtInr, fmtInt, fmtMs, fmtTemp, fmtTime } from '../lib/format';
+import { COOLING_LABEL, fmtAgo, fmtDuration, fmtInr, fmtInt, fmtMs, fmtTemp, fmtTime } from '../lib/format';
 import { BudgetBar, Empty, PhasePill, SimTag, StatusBadge, statusKey, useNow } from '../components/bits';
 import { TelemetryChart } from '../components/TelemetryChart';
 import { IncidentCard } from '../components/IncidentCard';
@@ -84,6 +84,17 @@ function DeviceView({
   const chartIncidents = devIncidents.filter((i) => (i.resolvedAt ?? Date.now()) >= Date.now() - rangeMs - 60_000);
   const tc = st?.tc ?? latest?.tc;
   const k = statusKey(st);
+  const [exporting, setExporting] = useState<string | null>(null);
+  const exportCsv = async () => {
+    setExporting('Exporting…');
+    try {
+      const to = Date.now();
+      const { truncated } = await downloadFile(`/telemetry/${encodeURIComponent(id)}/export.csv?from=${to - rangeMs}&to=${to}`, `coldguard-${id}.csv`);
+      setExporting(truncated ? 'Exported the first 100,000 rows' : null);
+    } catch {
+      setExporting('Export failed');
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -97,6 +108,19 @@ function DeviceView({
         <StatusBadge status={k} />
         <span className="text-sm text-ink-2">{st?.reasons.join(' · ')}</span>
       </div>
+
+      {st?.eta && (
+        <div role="status" className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border border-warn/50 bg-warn-bg px-3 py-2 text-sm text-warn">
+          <TrendingUp size={16} aria-hidden />
+          <b>
+            Forecast: reaches {st.eta.limitC} °C in ≈ {fmtDuration(st.eta.sec)}
+          </b>
+          <span className="text-xs text-ink-2">
+            {st.eta.slopeCPerMin > 0 ? 'rising' : 'falling'} {Math.abs(st.eta.slopeCPerMin).toFixed(2)} °C/min · straight-line extrapolation of the recent trend — an
+            estimate, not an alert
+          </span>
+        </div>
+      )}
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7" aria-label="Current readings">
         <Reading icon={Thermometer} label="Temperature" value={fmtTemp(tc, 2)} tone={tc != null && rules && (tc > rules.tempHighC || tc < rules.tempLowC) ? 'text-crit' : ''} sub={rules ? `range ${rules.tempLowC}–${rules.tempHighC} °C (demo setting)` : ''} />
@@ -169,6 +193,10 @@ function DeviceView({
                 <RefreshCw size={13} aria-hidden /> Reload
               </button>
             )}
+            <button className="btn btn-sm" onClick={() => void exportCsv()} disabled={exporting === 'Exporting…'} title="Download the raw stored readings for the selected range as CSV">
+              <Download size={13} aria-hidden /> Export CSV
+            </button>
+            {exporting && <span className="text-[11px] text-ink-3">{exporting}</span>}
             <span className="flex items-center gap-1 text-[11px] text-ink-3">
               <ZoomIn size={12} aria-hidden /> Drag across the chart to zoom — live data keeps merging while you inspect.
             </span>
@@ -225,13 +253,13 @@ function Reading({ icon: Icon, label, value, sub, tone }: { icon: typeof Thermom
 
 function Legend() {
   const items = [
-    ['#6cd3ff', 'Temperature (°C)'],
-    ['rgba(108,211,255,0.4)', 'Bucket min–max'],
-    ['#c4a7ff', 'Late (out-of-order) reading'],
-    ['#ff5d5d', 'Threshold / alert / cooling fault strip'],
-    ['#f0b429', 'Door-open strip'],
-    ['#7fd1b9', 'Humidity %RH'],
-    ['#e8c26b', 'Battery %'],
+    ['#0891b2', 'Temperature (°C)'],
+    ['rgba(8,145,178,0.4)', 'Bucket min–max'],
+    ['#7c3aed', 'Late (out-of-order) reading'],
+    ['#dc2626', 'Threshold / alert / cooling fault strip'],
+    ['#d97706', 'Door-open strip'],
+    ['#0d9488', 'Humidity %RH'],
+    ['#ca8a04', 'Battery %'],
   ];
   return (
     <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 px-1 text-[11px] text-ink-3">

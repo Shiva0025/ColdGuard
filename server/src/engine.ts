@@ -31,12 +31,18 @@ interface Runtime {
   sparkLastAt: number;
   pending: { high: Pending | null; low: Pending | null };
   driftCalmSince: number | null;
+  /** Latest least-squares slope (°C/min) over the drift window; null until enough readings. */
+  slope: number | null;
   offline: boolean;
   budgetSpent: boolean;
 }
 
 const SPARK_POINTS = 90;
 const SPARK_EVERY_MS = 2000;
+/** Forecasts further out than this are not shown (too uncertain to be useful). */
+const ETA_HORIZON_SEC = 600;
+/** A forecast needs the reading to be within this fraction of the band width from the limit. */
+const ETA_NEAR_FRACTION = 0.25;
 
 const TZ = process.env.DISPLAY_TZ || 'Asia/Kolkata';
 const timeFmt = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
@@ -91,13 +97,14 @@ export class StateEngine {
         sparkLastAt: 0,
         pending: { high: null, low: null },
         driftCalmSince: null,
+        slope: null,
         offline: true,
         budgetSpent: false,
       });
     }
   }
 
-  restore(id: string, pos: SourcePosition | null, snap: Partial<DeviceState> & { spark?: number[] }) {
+  restore(id: string, pos: SourcePosition | null, snap: Partial<DeviceState> & { spark?: number[] }, wallNow = Date.now()) {
     const rt = this.devs.get(id);
     if (!rt) return;
     rt.pos = pos;
@@ -105,9 +112,14 @@ export class StateEngine {
     Object.assign(rt.state, state, { id });
     rt.spark = spark ?? [];
     rt.lastReceivedWall = rt.state.r;
-    rt.offline = false;
+    // A device that was already silent past the limit when the server came back
+    // is restored as offline (status only). The silence spans the server's own
+    // downtime, so it is not evidence of a sensor fault: tickOffline skips it and
+    // no new incident opens. An offline incident that was open before the
+    // restart stays open and resolves normally when readings resume.
+    rt.offline = rt.lastReceivedWall === null || wallNow - rt.lastReceivedWall > this.rules.offlineSec * 1000;
     rt.budgetSpent = rt.state.exposure >= this.rules.exposureBudgetCMin;
-    this.refreshStatus(rt, Date.now());
+    this.refreshStatus(rt, wallNow);
   }
 
   device(id: string): DeviceInfo | undefined {
@@ -327,8 +339,12 @@ export class StateEngine {
     while (rt.recent.length && rt.recent[0].t < r.t - win) rt.recent.shift();
     if (rt.recent.length > 600) rt.recent.splice(0, rt.recent.length - 600);
     const pts = rt.recent;
-    if (pts.length < 8 || r.t - pts[0].t < win * 0.5) return;
+    if (pts.length < 8 || r.t - pts[0].t < win * 0.5) {
+      rt.slope = null;
+      return;
+    }
     const slope = slopePerMin(pts);
+    rt.slope = slope;
     const active = this.incidents.get(rt.info.id, 'rapid_drift');
     const excursion = this.incidents.get(rt.info.id, 'temp_high') || this.incidents.get(rt.info.id, 'temp_low');
     if (!active) {
@@ -406,6 +422,7 @@ export class StateEngine {
     let status: DeviceState['status'] = 'healthy';
     const R = this.rules;
     const ex = has('temp_high') || has('temp_low');
+    st.eta = null;
     if (ex) {
       status = 'critical';
       reasons.push(ex.type === 'temp_high' ? `Above ${R.tempHighC} °C for ≥ ${R.sustainSec} s` : `Below ${R.tempLowC} °C for ≥ ${R.sustainSec} s`);
@@ -422,6 +439,21 @@ export class StateEngine {
       if (dr) {
         const sl = dr.evidence.slopeCPerMin ?? 0;
         reasons.push(`Temp ${sl >= 0 ? 'rising' : 'falling'} ${Math.abs(sl).toFixed(1)} °C/min`);
+      }
+      // Time-to-breach forecast: only while in range, with no breach pending, and trending out
+      // at ≥ half the drift threshold. Linear extrapolation — an estimate, never an alert by itself.
+      const sl = rt.slope;
+      if (!p && sl != null && st.tc != null && Math.abs(sl) >= R.driftCPerMin / 2 && st.tc <= R.tempHighC && st.tc >= R.tempLowC) {
+        const limitC = sl > 0 ? R.tempHighC : R.tempLowC;
+        const sec = ((limitC - st.tc) / sl) * 60;
+        // Normal thermostat cycling swings quickly through the middle of the band and then reverses,
+        // so only forecast once the reading is in the outer quarter of the band next to that limit.
+        const near = Math.abs(limitC - st.tc) <= (R.tempHighC - R.tempLowC) * ETA_NEAR_FRACTION;
+        if (near && sec > 0 && sec <= ETA_HORIZON_SEC) {
+          st.eta = { sec: Math.round(sec), limit: sl > 0 ? 'high' : 'low', limitC, slopeCPerMin: Math.round(sl * 100) / 100 };
+          const shown = Math.max(5, Math.round(sec / 5) * 5);
+          reasons.push(`≈ ${shown >= 60 ? `${Math.floor(shown / 60)} min ${shown % 60} s` : `${shown} s`} to ${limitC} °C at current rate`);
+        }
       }
       if (has('low_battery')) reasons.push(`Battery ${st.b?.toFixed(0)} %`);
       if (st.cs === 2) reasons.push('Cooling unit fault');

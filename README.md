@@ -101,7 +101,7 @@ npm run loadtest -- --rate 1000 --clients 20 --duration 60
 npm run verify-report -- coldguard-report-<incident>.json   # offline evidence verification
 ```
 
-**Phones (judges join):** run `npm run dev` on a machine on the venue Wi-Fi (Vite listens on all interfaces). Then Control centre → *Judges join by QR* → *Create invite*, pick the LAN address, and show the QR code. Phones must be able to reach that address (some venue networks isolate clients; a hotspot or a public deployment works around that).
+**Phones (judges join):** run `npm run dev` on a machine on the venue Wi-Fi (Vite listens on all interfaces). Then Control centre → *Judges join by QR* → *Create invite*, pick the LAN address, and show the QR code. If the venue Wi-Fi isolates clients and phones cannot reach that address, press **Open public link** in the same panel: the server starts a public tunnel (`cloudflared` if installed, otherwise `ngrok`) and the QR code switches to the public HTTPS URL, which also works over mobile data.
 
 Results with actual outputs are in [TEST_RESULTS.md](TEST_RESULTS.md) and [BENCHMARK.md](BENCHMARK.md).
 

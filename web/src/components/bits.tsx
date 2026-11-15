@@ -38,7 +38,7 @@ export const Sparkline = memo(function Sparkline({
   high,
   width = 120,
   height = 28,
-  color = '#6cd3ff',
+  color = '#0891b2',
 }: {
   values: number[];
   low: number;
@@ -55,8 +55,8 @@ export const Sparkline = memo(function Sparkline({
   const d = values.map((v, i) => `${i ? 'L' : 'M'}${(i * step).toFixed(1)},${y(v).toFixed(1)}`).join('');
   return (
     <svg width={width} height={height} role="img" aria-label={`Temperature trend, last value ${values[values.length - 1]} °C`}>
-      <rect x={0} y={y(high)} width={width} height={Math.max(0, y(low) - y(high))} fill="#3ecf8e" opacity={0.07} />
-      <line x1={0} x2={width} y1={y(high)} y2={y(high)} stroke="#ff5d5d" strokeOpacity={0.35} strokeDasharray="2 3" />
+      <rect x={0} y={y(high)} width={width} height={Math.max(0, y(low) - y(high))} fill="#059669" opacity={0.07} />
+      <line x1={0} x2={width} y1={y(high)} y2={y(high)} stroke="#dc2626" strokeOpacity={0.35} strokeDasharray="2 3" />
       <path d={d} fill="none" stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
     </svg>
   );
@@ -72,14 +72,70 @@ export function useNow(intervalMs = 1000) {
   return now;
 }
 
-export function Stat({ label, value, sub, tone, children }: { label: string; value: ReactNode; sub?: ReactNode; tone?: string; children?: ReactNode }) {
+const ACCENTS = {
+  blue: { tile: 'bg-sky-100 text-sky-600', blob: 'bg-sky-100' },
+  green: { tile: 'bg-emerald-100 text-emerald-600', blob: 'bg-emerald-100' },
+  amber: { tile: 'bg-amber-100 text-amber-600', blob: 'bg-amber-100' },
+  red: { tile: 'bg-rose-100 text-rose-600', blob: 'bg-rose-100' },
+  slate: { tile: 'bg-slate-100 text-slate-500', blob: 'bg-slate-100' },
+  violet: { tile: 'bg-violet-100 text-violet-600', blob: 'bg-violet-100' },
+} as const;
+export type Accent = keyof typeof ACCENTS;
+
+export function Stat({
+  label,
+  value,
+  sub,
+  tone,
+  icon: Icon,
+  accent = 'slate',
+  alert = false,
+  children,
+}: {
+  label: string;
+  value: ReactNode;
+  sub?: ReactNode;
+  tone?: string;
+  icon?: typeof CheckCircle2;
+  accent?: Accent;
+  /** Tint the whole card (used when the number itself is bad news). */
+  alert?: boolean;
+  children?: ReactNode;
+}) {
+  const a = ACCENTS[accent];
   return (
-    <div className="panel min-w-0 px-4 py-3">
-      <div className="label">{label}</div>
-      <div className={`mt-1 text-2xl font-semibold tabular ${tone ?? ''}`}>{value}</div>
-      {sub && <div className="mt-0.5 text-xs text-ink-3">{sub}</div>}
-      {children}
+    <div className={`panel stat-card min-w-0 px-4 py-3.5 ${alert ? 'border-rose-200 bg-gradient-to-br from-white to-rose-50' : ''}`}>
+      {Icon && <span className={`stat-blob ${a.blob}`} aria-hidden />}
+      <div className="relative flex items-start gap-3">
+        {Icon && (
+          <span className={`icon-tile ${a.tile}`}>
+            <Icon size={20} aria-hidden />
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className={Icon ? 'text-[13px] font-semibold text-ink-2' : 'label'}>{label}</div>
+          <div className={`mt-0.5 text-[26px] leading-tight font-bold tracking-tight tabular ${tone ?? ''}`}>{value}</div>
+          {sub && <div className="mt-0.5 text-xs text-ink-3">{sub}</div>}
+          {children}
+        </div>
+      </div>
     </div>
+  );
+}
+
+/** Small progress ring with the percentage in the middle. */
+export function Ring({ pct, color = '#05875f', size = 46 }: { pct: number; color?: string; size?: number }) {
+  const r = size / 2 - 4;
+  const c = 2 * Math.PI * r;
+  const p = Math.min(100, Math.max(0, pct));
+  return (
+    <svg width={size} height={size} role="img" aria-label={`${Math.round(p)} percent`} className="shrink-0">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e3e9f1" strokeWidth={4} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={4} strokeLinecap="round" strokeDasharray={`${(p / 100) * c} ${c}`} transform={`rotate(-90 ${size / 2} ${size / 2})`} />
+      <text x="50%" y="50%" dominantBaseline="central" textAnchor="middle" fontSize="11" fontWeight="700" fill={color}>
+        {Math.round(p)}%
+      </text>
+    </svg>
   );
 }
 

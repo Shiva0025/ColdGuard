@@ -1,6 +1,7 @@
 import express, { type Request, type Response, type Router } from 'express';
 import {
   AckSchema,
+  COOLING_FROM_CODE,
   CommandRequestSchema,
   FaultSchema,
   GROUPS,
@@ -25,6 +26,7 @@ import type { StateEngine } from './engine.js';
 import { fromDoc, type IncidentManager } from './incidents.js';
 import { OverloadError, toReading, type IngestPipeline } from './pipeline.js';
 import type { SimControl } from './simControl.js';
+import type { TunnelManager } from './tunnel.js';
 import type { CommandManager } from './commands.js';
 import { buildStory } from './replay.js';
 import { verifyBlocks, sha256 as sha, type EvidenceChain } from './evidence.js';
@@ -43,6 +45,9 @@ export interface RouteDeps {
   metrics: () => unknown;
   resetDemo: () => Promise<void>;
   onCatalogChange: (groupId: string) => void;
+  tunnel: TunnelManager;
+  /** The port this server is actually listening on. */
+  port: () => number;
 }
 
 /** Token bucket keyed by agent, measured in events (not requests). */
@@ -81,6 +86,9 @@ function loginLimiter(max: number, windowMs: number) {
 }
 
 const NICE_BUCKETS = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200].map((s) => s * 1000);
+
+const EXPORT_MAX_ROWS = 100_000;
+const ANALYTICS_MAX_INCIDENTS = 5000;
 
 const num = (v: unknown, d: number) => {
   const n = Number(v);
@@ -223,8 +231,24 @@ export function buildRoutes(d: RouteDeps): Router {
     res.json({
       invite: inv && inv.expiresAt > Date.now() ? inv : null,
       lanAddresses: lanAddresses(),
+      tunnel: d.tunnel.status(),
       trucks: guests.map((g) => ({ deviceId: g._id, name: g.name, claimedAt: +g.claimedAt, state: engine.state(g._id) })),
     });
+  });
+  // Public tunnel for venues whose Wi-Fi isolates clients (phones cannot reach the LAN address).
+  r.post('/guest/tunnel', auth.requireRole('operator'), express.json({ limit: '1kb' }), async (req, res) => {
+    // Only this app may be exposed: the API port itself, or the web origin(s) from CORS_ORIGIN (Vite in dev).
+    const own = d.port();
+    const webPorts = cfg.CORS_ORIGIN.split(',').map((o) => { try { const u = new URL(o.trim()); return /^(localhost|127\.0\.0\.1)$/.test(u.hostname) ? Number(u.port) : 0; } catch { return 0; } }).filter(Boolean);
+    const allowed = [...new Set([...webPorts, own])];
+    const asked = num(req.body?.port, 0);
+    const port = allowed.includes(asked) ? asked : cfg.STATIC_DIR ? own : allowed[0];
+    const st = await d.tunnel.start(`http://localhost:${port}`);
+    res.status(st.status === 'on' ? 200 : 502).json(st);
+  });
+  r.delete('/guest/tunnel', auth.requireRole('operator'), (_req, res) => {
+    d.tunnel.stop();
+    res.json(d.tunnel.status());
   });
   r.post('/guest/release', auth.requireRole('operator'), async (_req, res) => {
     await db.col.guests.deleteMany({});
@@ -364,7 +388,110 @@ export function buildRoutes(d: RouteDeps): Router {
     res.json({ readings: docs.map(toReading), truncated, watermark });
   });
 
+  /**
+   * CSV export of raw readings for one device and time range (streamed from a cursor,
+   * capped at EXPORT_MAX_ROWS; the X-Truncated header says whether the cap was hit).
+   */
+  r.get('/telemetry/:id/export.csv', async (req, res) => {
+    const info = canSeeDevice(req, String(req.params.id));
+    if (!info) return void res.status(404).json({ error: 'not found' });
+    const now = Date.now();
+    const to = Math.min(num(req.query.to, now), now + LIMITS.maxFutureSkewMs);
+    const from = Math.max(num(req.query.from, to - 15 * 60_000), to - cfg.RETENTION_HOURS * 3600_000);
+    if (!(from < to)) return void res.status(400).json({ error: 'from must be < to' });
+    const range: Filter<TelemetryDoc> = { d: info.id, t: { $gte: new Date(from), $lte: new Date(to) } };
+    const total = await db.col.telemetry.countDocuments(range, { limit: EXPORT_MAX_ROWS + 1 });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="coldguard-${info.id}-${new Date(from).toISOString().replace(/[:.]/g, '-')}.csv"`);
+    res.setHeader('X-Truncated', total > EXPORT_MAX_ROWS ? '1' : '0');
+    res.write('eventId,deviceId,sessionId,seq,observedAt,receivedAt,tempC,humidityPct,batteryPct,cooling,doorOpen,routeProgress,late,commitCursor\n');
+    const cursor = db.col.telemetry.find(range).sort({ t: 1, _id: 1 }).limit(EXPORT_MAX_ROWS);
+    try {
+      let chunk = '';
+      let n = 0;
+      for await (const doc of cursor) {
+        const x = toReading(doc);
+        chunk +=
+          [
+            x.id,
+            x.d,
+            x.s,
+            x.q,
+            new Date(x.t).toISOString(),
+            new Date(x.r).toISOString(),
+            x.tc,
+            x.h,
+            x.b,
+            COOLING_FROM_CODE[x.cs] ?? x.cs,
+            x.door === undefined ? '' : x.door,
+            x.p === undefined ? '' : x.p,
+            x.late ? 1 : 0,
+            x.c,
+          ].join(',') + '\n';
+        if (++n % 500 === 0) {
+          if (!res.write(chunk)) await new Promise((ok) => res.once('drain', ok));
+          chunk = '';
+        }
+      }
+      res.end(chunk);
+    } catch {
+      res.destroy(); // headers already sent: abort so the client sees a failed download, not a short file
+    } finally {
+      await cursor.close().catch(() => {});
+    }
+  });
+
   // ---- Incidents ----------------------------------------------------------
+  /**
+   * Response analytics over the user's corridors: how many incidents, how fast they were
+   * acknowledged (triggered → ack) and resolved (triggered → resolved). Medians, measured
+   * from stored incident documents only.
+   */
+  r.get('/analytics/incidents', async (req, res) => {
+    const hours = Math.min(Math.max(num(req.query.hours, 24), 1), 168);
+    const since = Date.now() - hours * 3600_000;
+    const filter: Record<string, unknown> = req.user!.deviceId ? { deviceId: req.user!.deviceId } : { groupId: { $in: req.user!.groups } };
+    filter.triggeredAt = { $gte: since };
+    const docs = (await db.col.incidents.find(filter).sort({ triggeredAt: -1 }).limit(ANALYTICS_MAX_INCIDENTS).toArray()).map(fromDoc);
+    const median = (xs: number[]) => {
+      if (!xs.length) return null;
+      const s = [...xs].sort((a, b) => a - b);
+      const m = s.length >> 1;
+      return Math.round(s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2);
+    };
+    const ackSec = (i: (typeof docs)[number]) => (i.ack ? Math.max(0, (i.ack.at - i.triggeredAt) / 1000) : null);
+    const resSec = (i: (typeof docs)[number]) => (i.resolvedAt != null ? Math.max(0, (i.resolvedAt - i.triggeredAt) / 1000) : null);
+    const summarise = (list: typeof docs) => {
+      const acks = list.map(ackSec).filter((x): x is number => x != null);
+      const ress = list.map(resSec).filter((x): x is number => x != null);
+      return {
+        total: list.length,
+        critical: list.filter((i) => i.severity === 'critical').length,
+        active: list.filter((i) => i.active).length,
+        unacknowledged: list.filter((i) => i.active && !i.ack).length,
+        acknowledged: acks.length,
+        resolved: ress.length,
+        medianAckSec: median(acks),
+        medianResolveSec: median(ress),
+      };
+    };
+    const groupBy = (key: (i: (typeof docs)[number]) => string) => {
+      const m = new Map<string, typeof docs>();
+      for (const i of docs) m.set(key(i), [...(m.get(key(i)) ?? []), i]);
+      return [...m.entries()].map(([k, list]) => ({ key: k, ...summarise(list) })).sort((a, b) => b.total - a.total);
+    };
+    res.json({
+      hours,
+      since,
+      generatedAt: Date.now(),
+      truncated: docs.length >= ANALYTICS_MAX_INCIDENTS,
+      overall: summarise(docs),
+      byType: groupBy((i) => i.type),
+      byGroup: groupBy((i) => i.groupId),
+      topDevices: groupBy((i) => i.deviceId).slice(0, 5),
+    });
+  });
+
   r.get('/incidents', async (req, res) => {
     const groups = req.user!.groups;
     const filter: Record<string, unknown> = req.user!.deviceId ? { deviceId: req.user!.deviceId } : { groupId: { $in: groups } };
@@ -560,10 +687,15 @@ export function buildRoutes(d: RouteDeps): Router {
   return r;
 }
 
+/** Addresses a phone on the same network could reach: skip Docker/VM bridges, prefer Wi-Fi, then Ethernet. */
 function lanAddresses(): string[] {
-  const out: string[] = [];
-  for (const list of Object.values(os.networkInterfaces())) {
-    for (const a of list ?? []) if (a.family === 'IPv4' && !a.internal) out.push(a.address);
+  const out: { ip: string; rank: number }[] = [];
+  for (const [name, list] of Object.entries(os.networkInterfaces())) {
+    if (/^(docker|br-|veth|virbr|vmnet|vboxnet|lo|tun|tap|zt|tailscale)/i.test(name)) continue;
+    for (const a of list ?? []) {
+      if (a.family !== 'IPv4' || a.internal) continue;
+      out.push({ ip: a.address, rank: /^(wl|wlan|wi)/i.test(name) ? 0 : /^(en|eth)/i.test(name) ? 1 : 2 });
+    }
   }
-  return out;
+  return out.sort((a, b) => a.rank - b.rank).map((x) => x.ip);
 }

@@ -2,6 +2,7 @@ import { io as ioc, type Socket } from 'socket.io-client';
 import type { SubscribeAck, TelemetryEventIn } from '@coldguard/shared';
 import { loadConfig, type Config } from '../src/config.js';
 import { createColdGuard, type ColdGuard } from '../src/app.js';
+import type { TunnelManager } from '../src/tunnel.js';
 
 export const MONGO = process.env.TEST_MONGO_URL ?? 'mongodb://localhost:27027';
 export const AGENT_KEY = 'test-agent.test-secret-0123456789';
@@ -18,8 +19,8 @@ export interface TestApp {
   stop(): Promise<void>;
 }
 
-export async function startApp(overrides: Partial<Record<keyof Config, unknown>> = {}): Promise<TestApp> {
-  const dbName = `coldguard_test_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+export async function startApp(overrides: Partial<Record<keyof Config, unknown>> = {}, opts: { dbName?: string; keepDb?: boolean; tunnel?: TunnelManager } = {}): Promise<TestApp> {
+  const dbName = opts.dbName ?? `coldguard_test_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
   const cfg = loadConfig(
     {},
     {
@@ -36,7 +37,7 @@ export async function startApp(overrides: Partial<Record<keyof Config, unknown>>
       ...overrides,
     },
   );
-  const cg = await createColdGuard(cfg);
+  const cg = await createColdGuard(cfg, { tunnel: opts.tunnel });
   const url = `http://127.0.0.1:${cg.port}`;
   const sockets: Socket[] = [];
   const app: TestApp = {
@@ -77,6 +78,7 @@ export async function startApp(overrides: Partial<Record<keyof Config, unknown>>
       sockets.forEach((s) => s.disconnect());
       const db = cg.db.db;
       await cg.stop().catch(() => {});
+      if (opts.keepDb) return;
       const { MongoClient } = await import('mongodb');
       const c = new MongoClient(`${MONGO}/${dbName}`);
       await c.connect();

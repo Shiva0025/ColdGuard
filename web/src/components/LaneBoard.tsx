@@ -56,7 +56,7 @@ export const LaneBoard = memo(function LaneBoard({
     <svg viewBox={`0 0 ${W} ${H}`} className="h-full w-full" role="group" aria-label="Lane board: shipments and cold rooms by location">
       <defs>
         <pattern id="grid" width="26" height="26" patternUnits="userSpaceOnUse">
-          <path d="M26 0H0V26" fill="none" stroke="#18242d" strokeWidth="1" />
+          <path d="M26 0H0V26" fill="none" stroke="#e9eef5" strokeWidth="1" />
         </pattern>
       </defs>
       <rect width={W} height={H} fill="url(#grid)" />
@@ -67,15 +67,15 @@ export const LaneBoard = memo(function LaneBoard({
           y1={py(CITIES[l.a].lat)}
           x2={px(CITIES[l.b].lon)}
           y2={py(CITIES[l.b].lat)}
-          stroke={l.g === 'deccan' ? '#24506a' : '#3d3a66'}
+          stroke={l.g === 'deccan' ? '#7cc4dc' : '#b9aeea'}
           strokeWidth={2}
           strokeLinecap="round"
         />
       ))}
       {cities.map((c) => (
         <g key={c}>
-          <circle cx={px(CITIES[c].lon)} cy={py(CITIES[c].lat)} r={3} fill="#3a4b58" />
-          <text x={px(CITIES[c].lon) + 6} y={py(CITIES[c].lat) - 6} fontSize="10.5" fill="#7c8d9b">
+          <circle cx={px(CITIES[c].lon)} cy={py(CITIES[c].lat)} r={3} fill="#94a3b8" />
+          <text x={px(CITIES[c].lon) + 6} y={py(CITIES[c].lat) - 6} fontSize="10.5" fill="#64748b">
             {c}
           </text>
         </g>
@@ -109,9 +109,9 @@ export const LaneBoard = memo(function LaneBoard({
               </circle>
             )}
             {d.kind === 'facility' ? (
-              <rect x={x - 6 + 10} y={y - 6 + 10} width={12} height={12} rx={2} fill={color} stroke={hl ? '#fff' : '#0b1116'} strokeWidth={hl ? 2 : 1.5} />
+              <rect x={x - 6 + 10} y={y - 6 + 10} width={12} height={12} rx={2} fill={color} stroke={hl ? '#0f1c2e' : '#ffffff'} strokeWidth={hl ? 2 : 1.5} />
             ) : (
-              <circle cx={x} cy={y} r={hl ? 7 : 5.5} fill={color} stroke={hl ? '#fff' : '#0b1116'} strokeWidth={hl ? 2 : 1.5} />
+              <circle cx={x} cy={y} r={hl ? 7 : 5.5} fill={color} stroke={hl ? '#0f1c2e' : '#ffffff'} strokeWidth={hl ? 2 : 1.5} />
             )}
           </g>
         );

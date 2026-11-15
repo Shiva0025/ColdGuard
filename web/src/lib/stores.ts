@@ -1,3 +1,4 @@
+import { announceIncident } from './alerts';
 import { useSyncExternalStore } from 'react';
 import type { DeviceInfo, DeviceState, FleetDeltaMsg, GroupInfo, Incident, PlatformMetrics, Rules } from '@coldguard/shared';
 import { api } from './api';
@@ -192,6 +193,7 @@ class IncidentStore extends ThrottledStore {
     this.byId.set(i.id, i);
     if (!prev && i.active) {
       this.toasts = [{ id: i.id, incident: i, at: Date.now() }, ...this.toasts].slice(0, 4);
+      announceIncident(i);
     }
     this.changed();
   }

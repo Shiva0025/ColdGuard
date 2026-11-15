@@ -66,6 +66,11 @@ export interface DeviceState {
   /** Cumulative °C·min outside the configured band (in-order readings, live). */
   exposure: number;
   openIncidents: number;
+  /**
+   * Time-to-breach forecast: linear extrapolation of the current least-squares
+   * slope to the nearest limit. Present only while in range and trending out.
+   */
+  eta?: { sec: number; limit: 'high' | 'low'; limitC: number; slopeCPerMin: number } | null;
 }
 
 export interface GroupInfo {

@@ -214,13 +214,13 @@ function Comparison({ cmd, readings, rules, version }: { cmd: Command; readings:
         cursor: { drag: { x: false, y: false } },
         scales: { x: { time: true }, y: { range: (_u, mn, mx) => [Math.floor(Math.min(mn ?? 2, rules.tempLowC - 1)), Math.ceil(Math.max(mx ?? 8, rules.tempHighC + 1))] } },
         axes: [
-          { stroke: '#7c8d9b', font: '10px Inter, system-ui', grid: { stroke: '#1b2730' }, ticks: { stroke: '#1b2730' } },
-          { stroke: '#7c8d9b', font: '10px Inter, system-ui', grid: { stroke: '#1b2730' }, ticks: { stroke: '#1b2730' }, size: 34 },
+          { stroke: '#64748b', font: '10px Inter, system-ui', grid: { stroke: '#e6ecf3' }, ticks: { stroke: '#e6ecf3' } },
+          { stroke: '#64748b', font: '10px Inter, system-ui', grid: { stroke: '#e6ecf3' }, ticks: { stroke: '#e6ecf3' }, size: 34 },
         ],
         series: [
           {},
-          { label: 'Simulated: no intervention', stroke: '#c4a7ff', width: 1.5, dash: [5, 4], spanGaps: true, points: { show: false } },
-          { label: 'Observed: with intervention', stroke: '#3ecf8e', width: 1.75, spanGaps: true, points: { show: false } },
+          { label: 'Simulated: no intervention', stroke: '#7c3aed', width: 1.5, dash: [5, 4], spanGaps: true, points: { show: false } },
+          { label: 'Observed: with intervention', stroke: '#059669', width: 1.75, spanGaps: true, points: { show: false } },
         ],
         hooks: {
           draw: [
@@ -229,7 +229,7 @@ function Comparison({ cmd, readings, rules, version }: { cmd: Command; readings:
               const y = u.valToPos(rules.tempHighC, 'y', true);
               c.save();
               c.setLineDash([4, 4]);
-              c.strokeStyle = 'rgba(255,93,93,0.7)';
+              c.strokeStyle = 'rgba(220,38,38,0.7)';
               c.beginPath();
               c.moveTo(u.bbox.left, y);
               c.lineTo(u.bbox.left + u.bbox.width, y);

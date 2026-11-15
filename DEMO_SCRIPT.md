@@ -37,6 +37,6 @@
 
 ## Backup plans
 
-- **Phones can't reach the laptop** (client isolation on venue Wi-Fi): use a phone hotspot for the laptop and judges, or show the phone flow from a second browser window at mobile size (`/join/<code>`).
+- **Phones can't reach the laptop** (client isolation on venue Wi-Fi): press *Open public link* in the Judges panel — the QR code switches to a public tunnel URL (needs `cloudflared` or a configured `ngrok` on the laptop, and internet). Fallback: a phone hotspot, or show the phone flow from a second browser window at mobile size (`/join/<code>`).
 - **Simulator not connected:** `npm run dev -w simulator`.
 - **A judge leaves their door open:** that's part of the demo. Their truck gets its own explained alert, and you can send them a *Close compartment* command they'll see on their phone.

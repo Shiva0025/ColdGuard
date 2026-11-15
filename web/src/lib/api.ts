@@ -72,3 +72,22 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
   if (!res.ok) throw new ApiError(res.status, (data as any)?.error ?? `HTTP ${res.status}`, data);
   return data as T;
 }
+
+/** Authenticated download: fetch with the bearer token, then hand the blob to the browser. */
+export async function downloadFile(path: string, filename: string): Promise<{ truncated: boolean }> {
+  const headers = new Headers();
+  const tok = session.token;
+  if (tok) headers.set('authorization', `Bearer ${tok}`);
+  const res = await fetch(`/api${path}`, { headers });
+  if (res.status === 401 && tok) onUnauthorized();
+  if (!res.ok) throw new ApiError(res.status, `HTTP ${res.status}`);
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  return { truncated: res.headers.get('x-truncated') === '1' };
+}

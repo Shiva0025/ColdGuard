@@ -5,18 +5,18 @@ import type { DeviceStream } from '../lib/deviceStream';
 import { realtime } from '../lib/realtime';
 
 const C = {
-  axis: '#7c8d9b',
-  grid: '#1b2730',
-  temp: '#6cd3ff',
-  band: 'rgba(108,211,255,0.16)',
-  late: '#c4a7ff',
-  hum: '#7fd1b9',
-  bat: '#e8c26b',
-  ok: 'rgba(62,207,142,0.07)',
-  bad: 'rgba(255,93,93,0.06)',
-  crit: '#ff5d5d',
-  warn: '#f0b429',
-  okLine: '#3ecf8e',
+  axis: '#64748b',
+  grid: '#e6ecf3',
+  temp: '#0891b2',
+  band: 'rgba(8,145,178,0.16)',
+  late: '#7c3aed',
+  hum: '#0d9488',
+  bat: '#ca8a04',
+  ok: 'rgba(5,150,105,0.08)',
+  bad: 'rgba(220,38,38,0.06)',
+  crit: '#dc2626',
+  warn: '#d97706',
+  okLine: '#059669',
 };
 
 interface Built {
@@ -147,7 +147,7 @@ export function TelemetryChart({
         c.fillRect(left, yLo, w, Math.max(0, top + h - yLo));
         c.setLineDash([5, 4]);
         c.lineWidth = 1;
-        c.strokeStyle = 'rgba(255,93,93,0.7)';
+        c.strokeStyle = 'rgba(220,38,38,0.7)';
         for (const [v, lab] of [
           [R.tempHighC, `high ${R.tempHighC.toFixed(1)} °C`],
           [R.tempLowC, `low ${R.tempLowC.toFixed(1)} °C`],
@@ -157,21 +157,21 @@ export function TelemetryChart({
           c.moveTo(left, y);
           c.lineTo(left + w, y);
           c.stroke();
-          c.fillStyle = 'rgba(255,140,140,0.9)';
+          c.fillStyle = 'rgba(185,28,28,0.95)';
           c.font = `${11 * devicePixelRatio}px Inter, system-ui`;
           c.fillText(lab, left + 6 * devicePixelRatio, y - 4 * devicePixelRatio);
         }
         c.setLineDash([]);
       }
       // Cooling fault strip along the bottom.
-      c.fillStyle = 'rgba(255,93,93,0.85)';
+      c.fillStyle = 'rgba(220,38,38,0.85)';
       for (const [a, b] of fault) {
         const x0 = u.valToPos(a, 'x', true);
         const x1 = u.valToPos(b, 'x', true);
         c.fillRect(x0, top + h - 5 * devicePixelRatio, Math.max(2, x1 - x0), 5 * devicePixelRatio);
       }
       // Door-open strip just above the fault strip.
-      c.fillStyle = 'rgba(240,180,41,0.9)';
+      c.fillStyle = 'rgba(217,119,6,0.9)';
       for (const [a, b] of door) {
         const x0 = u.valToPos(a, 'x', true);
         const x1 = u.valToPos(b, 'x', true);
@@ -184,7 +184,7 @@ export function TelemetryChart({
         const marks: [number | undefined, string, string, boolean][] = [
           [i.type === 'temp_high' || i.type === 'temp_low' ? i.openedAt : undefined, i.severity === 'critical' ? C.crit : C.warn, '', true],
           [i.triggeredAt, i.severity === 'critical' ? C.crit : C.warn, `▲ ${name}`, false],
-          [i.ack?.at, '#6cd3ff', 'ack', true],
+          [i.ack?.at, '#0891b2', 'ack', true],
           [i.resolvedAt, C.okLine, `✓ ${name}`, false],
         ];
         const row = (idx % 3) * 13 * devicePixelRatio;

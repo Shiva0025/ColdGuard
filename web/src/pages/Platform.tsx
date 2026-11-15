@@ -31,10 +31,10 @@ export function PlatformPage() {
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label="Persisted / s" value={fmtInt(m.ingest.persistedPerSec)} sub="5 s window">
-          <MiniBars values={h.map((x) => x.persisted)} color="#6cd3ff" label="persisted per second, last 2 minutes" />
+          <MiniBars values={h.map((x) => x.persisted)} color="#0891b2" label="persisted per second, last 2 minutes" />
         </Stat>
         <Stat label="Server pipeline p95" value={fmtMs(m.pipeline.p95)} sub={`p50 ${fmtMs(m.pipeline.p50)} · p99 ${fmtMs(m.pipeline.p99)} · receivedAt → emit`}>
-          <MiniBars values={h.map((x) => x.pipelineP95)} color="#f0b429" label="pipeline p95 per second" />
+          <MiniBars values={h.map((x) => x.pipelineP95)} color="#d97706" label="pipeline p95 per second" />
         </Stat>
         <Stat label="Ingest queue" value={`${fmtInt(m.queue.depth)} / ${fmtInt(m.queue.capacity)}`} tone={m.queue.overloaded ? 'text-crit' : ''} sub={m.queue.overloaded ? 'shedding load: 503 + Retry-After' : 'bounded; admission all-or-nothing'} />
         <Stat label="DB batch p95" value={fmtMs(m.db.batchP95)} sub={`p50 ${fmtMs(m.db.batchP50)} · last batch ${m.db.lastBatchSize} docs`} />

@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import { TunnelManager } from './tunnel.js';
 import { Server } from 'socket.io';
 import { DEFAULT_RULES, RulesSchema, type PlatformMetrics, type SimCommandAck } from '@coldguard/shared';
 import { AuthService } from './auth.js';
@@ -39,7 +40,7 @@ export interface ColdGuard {
   stop(): Promise<void>;
 }
 
-export async function createColdGuard(cfg: Config): Promise<ColdGuard> {
+export async function createColdGuard(cfg: Config, opts: { tunnel?: TunnelManager } = {}): Promise<ColdGuard> {
   const db = await connectDb(cfg.MONGO_URL, { retentionHours: cfg.RETENTION_HOURS });
   if ((await db.col.users.estimatedDocumentCount()) === 0 || (await db.col.devices.countDocuments({ groupId: 'guest' })) === 0) {
     const s = await seedData(db.col, { demoPassword: cfg.DEMO_PASSWORD, agentKey: cfg.AGENT_KEY });
@@ -65,6 +66,7 @@ export async function createColdGuard(cfg: Config): Promise<ColdGuard> {
   );
   const auth = new AuthService(db.col, cfg.JWT_SECRET, cfg.JWT_TTL);
   const sim = new SimControl();
+  const tunnel = opts.tunnel ?? new TunnelManager();
 
   const app = express();
   app.disable('x-powered-by');
@@ -182,7 +184,7 @@ export async function createColdGuard(cfg: Config): Promise<ColdGuard> {
     io.emit('resync', { reason: 'server-restart' });
   };
 
-  app.use('/api', buildRoutes({ cfg, db, auth, engine, pipeline, incidents, sim, commands, evidence, metrics, resetDemo, onCatalogChange: (g) => io.to(`group:${g}`).emit('catalog', { groupId: g }) }));
+  app.use('/api', buildRoutes({ cfg, db, auth, engine, pipeline, incidents, sim, commands, evidence, metrics, resetDemo, onCatalogChange: (g) => io.to(`group:${g}`).emit('catalog', { groupId: g }), tunnel, port: () => { const a = httpServer.address(); return typeof a === 'object' && a ? a.port : cfg.PORT; } }));
 
   if (cfg.STATIC_DIR && fs.existsSync(cfg.STATIC_DIR)) {
     const dir = path.resolve(cfg.STATIC_DIR);
@@ -227,6 +229,7 @@ export async function createColdGuard(cfg: Config): Promise<ColdGuard> {
     timers.forEach(clearInterval);
     broadcaster.stop();
     sim.stop();
+    tunnel.stop();
     sampler.stop();
     await pipeline.stop();
     await incidents.flush();

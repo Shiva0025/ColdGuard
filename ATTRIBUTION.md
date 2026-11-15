@@ -16,6 +16,7 @@ ColdGuard's source code was written for the MERNIFY hackathon, with AI coding as
 | [@tanstack/react-virtual](https://tanstack.com/virtual) | 3.14.26 | MIT | Virtualised shipment list |
 | [lucide-react](https://lucide.dev) | 0.540.0 | ISC | Icons |
 | [qrcode](https://github.com/soldair/node-qrcode) | 1.5.4 | MIT | QR code for the judges' invite |
+| [Plus Jakarta Sans](https://github.com/tokotype/PlusJakartaSans) via @fontsource-variable/plus-jakarta-sans | 5.3.0 | OFL-1.1 | UI typeface (self-hosted) |
 | [zod](https://zod.dev) | 3.25.76 | MIT | Shared validation schemas |
 | [bcryptjs](https://github.com/dcodeIO/bcrypt.js) | 3.0.3 | BSD-3-Clause | Password hashing |
 | [jsonwebtoken](https://github.com/auth0/node-jsonwebtoken) | 9.0.3 | MIT | JWT sessions |

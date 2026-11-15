@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import QRCode from 'qrcode';
-import { QrCode, RefreshCw, Smartphone, Users, XCircle } from 'lucide-react';
+import { Globe, QrCode, RefreshCw, Smartphone, Users, XCircle } from 'lucide-react';
 import type { DeviceState } from '@coldguard/shared';
 import { api } from '../lib/api';
 import { fleet } from '../lib/stores';
@@ -16,6 +16,7 @@ interface Invite {
 interface Status {
   invite: Invite | null;
   lanAddresses: string[];
+  tunnel?: { status: 'off' | 'starting' | 'on'; url: string | null; provider: string | null; error: string | null };
   trucks: { deviceId: string; name: string; claimedAt: number; state?: DeviceState }[];
 }
 
@@ -23,8 +24,12 @@ interface Status {
 export function JudgesPanel({ big = false }: { big?: boolean }) {
   const [st, setSt] = useState<Status | null>(null);
   const [base, setBase] = useState<string>('');
+  const [picked, setPicked] = useState(false); // the operator chose an address explicitly
+  const [custom, setCustom] = useState('');
   const [svg, setSvg] = useState('');
   const [err, setErr] = useState<string | null>(null);
+  const [tunnelBusy, setTunnelBusy] = useState(false);
+  const [tunnelErr, setTunnelErr] = useState<string | null>(null);
 
   const load = () =>
     api<Status>('/guest/status')
@@ -41,11 +46,15 @@ export function JudgesPanel({ big = false }: { big?: boolean }) {
     const here = window.location;
     const out = [here.origin];
     if (/^(localhost|127\.)/.test(here.hostname)) for (const ip of st?.lanAddresses ?? []) out.unshift(`${here.protocol}//${ip}${here.port ? `:${here.port}` : ''}`);
+    // A public tunnel works from any network (venue Wi-Fi that isolates clients, mobile data), so it goes first.
+    if (st?.tunnel?.url) out.unshift(st.tunnel.url);
     return [...new Set(out)];
-  }, [st?.lanAddresses]);
+  }, [st?.lanAddresses, st?.tunnel?.url]);
+  // Default to the best reachable address (Wi-Fi first) as soon as the server reports it.
   useEffect(() => {
-    if (!base && bases.length) setBase(bases[0]);
-  }, [bases, base]);
+    if (!picked && bases.length && base !== bases[0]) setBase(bases[0]);
+  }, [bases, base, picked]);
+  const isLocal = /\/\/(localhost|127\.)/.test(base);
 
   const url = st?.invite && base ? `${base}/join/${st.invite.code}` : '';
   useEffect(() => {
@@ -65,12 +74,32 @@ export function JudgesPanel({ big = false }: { big?: boolean }) {
       setErr(e.message);
     }
   }
+  async function openTunnel() {
+    setTunnelErr(null);
+    setTunnelBusy(true);
+    try {
+      const here = window.location;
+      await api('/guest/tunnel', { method: 'POST', json: { port: Number(here.port) || (here.protocol === 'https:' ? 443 : 80) } });
+      setPicked(false); // switch the QR code to the public link
+    } catch (e: any) {
+      setTunnelErr(e.message);
+    } finally {
+      setTunnelBusy(false);
+      await load();
+    }
+  }
+  async function closeTunnel() {
+    await api('/guest/tunnel', { method: 'DELETE' }).catch(() => {});
+    setPicked(false);
+    await load();
+  }
   async function release() {
     if (!confirm('Release all judge trucks and invalidate the invite?')) return;
     await api('/guest/release', { method: 'POST' });
     await load();
   }
 
+  const tunnel = st?.tunnel;
   const mins = st?.invite ? Math.max(0, Math.round((st.invite.expiresAt - Date.now()) / 60000)) : 0;
   return (
     <section className="panel p-4" aria-labelledby="judges-h">
@@ -100,10 +129,63 @@ export function JudgesPanel({ big = false }: { big?: boolean }) {
               <div className="mt-1 text-center text-[11px] text-ink-3">
                 code <b className="text-ink tabular">{st!.invite!.code}</b> · expires in {mins} min · max {st!.invite!.maxClaims} trucks
               </div>
+              <div className="mt-2 rounded-md border border-line bg-panel-2 p-2 text-[11px] text-ink-3">
+                {tunnel?.url ? (
+                  <div className="flex items-center gap-2">
+                    <Globe size={13} className="shrink-0 text-ok" aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      Public link is on ({tunnel.provider}) — works from any network, including mobile data.
+                    </span>
+                    <button type="button" className="btn btn-sm" onClick={closeTunnel}>
+                      Close
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="min-w-0 flex-1">Phones can't open the page? The venue Wi-Fi is probably isolating devices.</span>
+                    <button type="button" className="btn btn-sm" onClick={openTunnel} disabled={tunnelBusy}>
+                      <Globe size={13} /> {tunnelBusy ? 'Opening…' : 'Open public link'}
+                    </button>
+                  </div>
+                )}
+                {(tunnelErr ?? tunnel?.error) && !tunnel?.url && (
+                  <p className="mt-1 text-warn">
+                    {tunnelErr ?? tunnel?.error}. Install cloudflared (no account needed) or run <code>ngrok config add-authtoken</code>, or paste a public URL below.
+                  </p>
+                )}
+              </div>
+              <form
+                className="mt-2 flex gap-1"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const u = custom.trim().replace(/\/+$/, '');
+                  if (/^https?:\/\/[^\s/]+$/.test(u)) {
+                    setPicked(true);
+                    setBase(u);
+                  }
+                }}
+              >
+                <input
+                  className="input min-w-0 flex-1 py-1 text-xs"
+                  placeholder="Public URL, e.g. https://xyz.ngrok-free.app"
+                  value={custom}
+                  onChange={(e) => setCustom(e.target.value)}
+                  aria-label="Public URL for phones (e.g. an ngrok tunnel)"
+                />
+                <button className="btn btn-sm">Use</button>
+              </form>
+              {isLocal && <p className="mt-1 text-center text-[11px] text-warn">localhost only works on this computer — phones need a network address.</p>}
               {bases.length > 1 && (
                 <label className="mt-2 block text-[11px] text-ink-3">
                   Address phones should use
-                  <select className="input mt-1 w-full py-1" value={base} onChange={(e) => setBase(e.target.value)}>
+                  <select
+                    className="input mt-1 w-full py-1"
+                    value={base}
+                    onChange={(e) => {
+                      setPicked(true);
+                      setBase(e.target.value);
+                    }}
+                  >
                     {bases.map((b) => (
                       <option key={b}>{b}</option>
                     ))}
@@ -139,7 +221,7 @@ export function JudgesPanel({ big = false }: { big?: boolean }) {
             </ul>
           ) : (
             <p className="mt-2 text-xs text-ink-3">
-              No phones yet. Phones must reach this machine: run the stack on the venue Wi-Fi (Vite listens on all interfaces) or deploy it.
+              No phones yet. Phones must reach this machine: use the same Wi-Fi, or press “Open public link” if the venue network isolates devices.
             </p>
           )}
         </div>

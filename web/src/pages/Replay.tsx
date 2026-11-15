@@ -35,7 +35,7 @@ interface ReplayData {
   firstBreachAt: number | null;
 }
 
-const SEV = { info: '#6cd3ff', warning: '#f0b429', critical: '#ff5d5d', ok: '#3ecf8e' };
+const SEV = { info: '#0891b2', warning: '#d97706', critical: '#dc2626', ok: '#059669' };
 const SPEEDS = [10, 30, 60, 120];
 
 /** Latest reading at or before t (binary search). */
@@ -139,7 +139,7 @@ export function ReplayPage() {
         </div>
         <input
           type="range"
-          className="mt-3 w-full accent-sky-400"
+          className="mt-3 w-full accent-cyan-600"
           min={data.from}
           max={data.to}
           step={1000}
@@ -275,17 +275,17 @@ function RouteMini({ device, progress, status }: { device?: DeviceInfo; progress
   const b = CITIES[device.destination] ?? a;
   if (!a) return null;
   const p = device.kind === 'shipment' ? (progress ?? 0) : 0;
-  const color = status === 'crit' ? '#ff5d5d' : status === 'warn' ? '#f0b429' : '#3ecf8e';
+  const color = status === 'crit' ? '#dc2626' : status === 'warn' ? '#d97706' : '#059669';
   return (
     <div className="mt-3">
       <div className="label">{device.kind === 'shipment' ? 'Truck position (simulated GPS)' : 'Cold room'}</div>
       <svg viewBox="0 0 300 54" className="mt-1 w-full" role="img" aria-label={`${device.origin} to ${device.destination}, ${Math.round(p * 100)} % of route`}>
-        <line x1={20} y1={27} x2={280} y2={27} stroke="#2d3e4b" strokeWidth={4} strokeLinecap="round" />
-        <line x1={20} y1={27} x2={20 + 260 * p} y2={27} stroke="#24506a" strokeWidth={4} strokeLinecap="round" />
-        <text x={20} y={50} fontSize="10" fill="#7c8d9b">
+        <line x1={20} y1={27} x2={280} y2={27} stroke="#d3dbe6" strokeWidth={4} strokeLinecap="round" />
+        <line x1={20} y1={27} x2={20 + 260 * p} y2={27} stroke="#0891b2" strokeWidth={4} strokeLinecap="round" />
+        <text x={20} y={50} fontSize="10" fill="#64748b">
           {device.origin}
         </text>
-        <text x={280} y={50} fontSize="10" fill="#7c8d9b" textAnchor="end">
+        <text x={280} y={50} fontSize="10" fill="#64748b" textAnchor="end">
           {device.destination}
         </text>
         <g transform={`translate(${20 + 260 * p},27)`}>
@@ -331,11 +331,11 @@ function ReplayChart({ data, t, onSeek }: { data: ReplayData; t: number; onSeek:
         cursor: { drag: { x: false, y: false } },
         scales: { x: { time: true, range: [data.from / 1000, data.to / 1000] }, y: { range: (_u, mn, mx) => [Math.floor(Math.min(mn, R.tempLowC - 1)), Math.ceil(Math.max(mx, R.tempHighC + 1))] }, h: { range: [0, 100] } },
         axes: [
-          { stroke: '#7c8d9b', font: '11px Inter, system-ui', grid: { stroke: '#1b2730' }, ticks: { stroke: '#1b2730' } },
-          { stroke: '#7c8d9b', font: '11px Inter, system-ui', grid: { stroke: '#1b2730' }, ticks: { stroke: '#1b2730' }, label: 'Temperature (°C)', labelSize: 18, size: 46 },
-          { scale: 'h', side: 1, stroke: '#7fd1b9', font: '11px Inter, system-ui', grid: { show: false }, label: 'Humidity %RH', labelSize: 18, size: 46 },
+          { stroke: '#64748b', font: '11px Inter, system-ui', grid: { stroke: '#e6ecf3' }, ticks: { stroke: '#e6ecf3' } },
+          { stroke: '#64748b', font: '11px Inter, system-ui', grid: { stroke: '#e6ecf3' }, ticks: { stroke: '#e6ecf3' }, label: 'Temperature (°C)', labelSize: 18, size: 46 },
+          { scale: 'h', side: 1, stroke: '#0d9488', font: '11px Inter, system-ui', grid: { show: false }, label: 'Humidity %RH', labelSize: 18, size: 46 },
         ],
-        series: [{}, { stroke: '#6cd3ff', width: 1.75, points: { show: false } }, { stroke: 'rgba(127,209,185,0.7)', width: 1, scale: 'h', points: { show: false } }],
+        series: [{}, { stroke: '#0891b2', width: 1.75, points: { show: false } }, { stroke: 'rgba(13,148,136,0.7)', width: 1, scale: 'h', points: { show: false } }],
         hooks: {
           draw: [
             (u) => {
@@ -347,10 +347,10 @@ function ReplayChart({ data, t, onSeek }: { data: ReplayData; t: number; onSeek:
               // band
               const yHi = u.valToPos(R.tempHighC, 'y', true);
               const yLo = u.valToPos(R.tempLowC, 'y', true);
-              c.fillStyle = 'rgba(62,207,142,0.06)';
+              c.fillStyle = 'rgba(5,150,105,0.08)';
               c.fillRect(left, yHi, w, yLo - yHi);
               c.setLineDash([5, 4]);
-              c.strokeStyle = 'rgba(255,93,93,0.7)';
+              c.strokeStyle = 'rgba(220,38,38,0.7)';
               for (const y of [yHi, yLo]) {
                 c.beginPath();
                 c.moveTo(left, y);
@@ -359,7 +359,7 @@ function ReplayChart({ data, t, onSeek }: { data: ReplayData; t: number; onSeek:
               }
               c.setLineDash([]);
               // door spans
-              c.fillStyle = 'rgba(240,180,41,0.85)';
+              c.fillStyle = 'rgba(217,119,6,0.85)';
               for (const [a, b] of doorSpans) {
                 const x0 = u.valToPos(a, 'x', true);
                 const x1 = u.valToPos(b, 'x', true);
@@ -367,9 +367,9 @@ function ReplayChart({ data, t, onSeek }: { data: ReplayData; t: number; onSeek:
               }
               // future shading + playhead
               const xp = u.valToPos(tRef.current / 1000, 'x', true);
-              c.fillStyle = 'rgba(11,17,22,0.55)';
+              c.fillStyle = 'rgba(243,246,251,0.7)';
               c.fillRect(xp, top, left + w - xp, h);
-              c.strokeStyle = '#ffffff';
+              c.strokeStyle = '#0f1c2e';
               c.lineWidth = 2 * dpr;
               c.beginPath();
               c.moveTo(xp, top);
@@ -407,11 +407,11 @@ function ReplayChart({ data, t, onSeek }: { data: ReplayData; t: number; onSeek:
       <div ref={ref} className="w-full" role="img" aria-label="Incident temperature and humidity with playhead; amber strip marks door open" />
       <div className="mt-1 flex flex-wrap gap-4 px-1 text-[11px] text-ink-3">
         <span>
-          <span className="mr-1 inline-block h-2 w-3 rounded-sm bg-[#6cd3ff]" />
+          <span className="mr-1 inline-block h-2 w-3 rounded-sm bg-[#0891b2]" />
           Temperature
         </span>
         <span>
-          <span className="mr-1 inline-block h-2 w-3 rounded-sm bg-[#7fd1b9]" />
+          <span className="mr-1 inline-block h-2 w-3 rounded-sm bg-[#0d9488]" />
           Humidity
         </span>
         <span>

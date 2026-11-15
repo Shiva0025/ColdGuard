@@ -5,6 +5,7 @@ import { incidents, useStore } from '../lib/stores';
 import type { SessionUser } from '../lib/api';
 import { Empty } from '../components/bits';
 import { IncidentCard } from '../components/IncidentCard';
+import { ResponseStats } from '../components/ResponseStats';
 
 type Scope = 'open' | 'unacked' | 'resolved' | 'all';
 
@@ -39,6 +40,7 @@ export function IncidentsPage({ user }: { user: SessionUser }) {
           </select>
         </label>
       </div>
+      <ResponseStats />
       <p className="text-xs text-ink-3">
         One active incident per logger and rule (deduplicated in memory and by a partial unique index in MongoDB). Excursions resolve only after the
         temperature stays inside the hysteresis band for the configured recovery time, so alerts do not flicker.
